@@ -45,7 +45,7 @@ function saveIdea() {
     ideas.value.push({ id: nextId++, title, tagline, description, x: centerX, y: centerY })
   } else {
     const idx = ideas.value.findIndex((i) => i.id === editingId.value)
-    if (idx !== -1) ideas.value[idx] = { ...ideas.value[idx], title, tagline, description }
+    if (idx !== -1) ideas.value[idx] = { ...ideas.value[idx], title, tagline, description } as Idea
   }
   isModalOpen.value = false
 }
@@ -78,10 +78,10 @@ function onPointerMove(e: PointerEvent) {
   if (idx === -1) return
   const x = e.clientX - dragOffsetX
   const y = e.clientY - dragOffsetY
-  ideas.value[idx] = { ...ideas.value[idx], x, y }
+  ideas.value[idx] = { ...ideas.value[idx], x, y } as Idea
 }
 
-function onPointerUp(e: PointerEvent) {
+function onPointerUp() {
   draggingId.value = null
 }
 
