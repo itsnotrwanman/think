@@ -1,4 +1,5 @@
 import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { supabase } from '@/lib/supabase'
 import type { User, Session } from '@supabase/supabase-js'
 
@@ -21,10 +22,23 @@ supabase.auth.onAuthStateChange((_event, newSession: Session | null) => {
 })
 
 export function useAuth() {
+  const router = useRouter()
   const isAuthenticated = computed(() => !!user.value)
   
   async function signOut() {
-    await supabase.auth.signOut()
+    try {
+      const { error } = await supabase.auth.signOut()
+      if (error) throw error
+      
+      // Clear local state immediately
+      user.value = null
+      session.value = null
+      
+      // Redirect to login
+      router.push('/login')
+    } catch (error) {
+      console.error('Error signing out:', error)
+    }
   }
   
   return {
