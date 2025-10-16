@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useColorMode } from '@vueuse/core'
+import { useAuth } from '@/composables/useAuth'
 import FlipCard from '@/components/FlipCard.vue'
 import ShimmerButton from '@/components/ShimmerButton.vue'
 import ParticlesBg from '@/components/ParticlesBg.vue'
@@ -18,6 +19,7 @@ function addIdea() {
 }
 
 const isDark = computed(() => useColorMode().value == 'dark')
+const { user, signOut } = useAuth()
 
 // modal state
 const isModalOpen = ref(false)
@@ -98,11 +100,22 @@ onBeforeUnmount(() => {
 <template>
   <div class="relative min-h-screen">
     <div class="relative z-10 mx-auto max-w-5xl px-6 py-16">
-      <div class="mb-8 flex justify-between">
-      <h1 class="text-3xl font-semibold tracking-tight">Think</h1>
-      <ShimmerButton class="text-white" @click="addIdea">+
-        <span class="ml-2">Add card</span>
-      </ShimmerButton>
+      <div class="mb-8 flex justify-between items-center">
+        <div>
+          <h1 class="text-3xl font-semibold tracking-tight">Think</h1>
+          <p class="text-sm text-muted-foreground">{{ user?.email }}</p>
+        </div>
+        <div class="flex gap-2">
+          <ShimmerButton class="text-white" @click="addIdea">+
+            <span class="ml-2">Add card</span>
+          </ShimmerButton>
+          <button
+            @click="signOut"
+            class="rounded-md border border-border bg-transparent px-4 py-2 text-sm hover:bg-accent"
+          >
+            Sign out
+          </button>
+        </div>
       </div>
 
       <div class="relative min-h-[60vh]">

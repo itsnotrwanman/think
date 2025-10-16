@@ -34,7 +34,7 @@ const fadeProgress = computed(() => {
 
     <!-- Section 2: Start now -->
     <section class="relative z-10 flex min-h-screen snap-start items-center justify-center px-6">
-      <RouterLink to="/think">
+      <RouterLink to="/login">
         <ShimmerButton class="text-white text-base md:text-lg px-8 py-4">Start now</ShimmerButton>
       </RouterLink>
     </section>
