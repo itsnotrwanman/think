@@ -141,10 +141,22 @@ async function onPointerUp() {
     const idea = ideas.value.find(i => i.id === draggingId.value)
     if (idea) {
       try {
-        await supabase
+        const { data, error } = await supabase
           .from('ideas')
           .update({ x: idea.x, y: idea.y })
           .eq('id', idea.id)
+          .select()
+          .single()
+        if (error) throw error
+        // Ensure local state mirrors DB
+        const idx = ideas.value.findIndex(i => i.id === idea.id)
+        if (idx !== -1 && data) {
+          ideas.value[idx] = {
+            ...ideas.value[idx],
+            x: Number((data as any).x ?? idea.x),
+            y: Number((data as any).y ?? idea.y),
+          } as Idea
+        }
       } catch (error) {
         console.error('Error saving position:', error)
       }
@@ -231,7 +243,7 @@ watch(user, async (u) => {
         </div>
       </div>
 
-      <div class="relative min-h-[60vh]">
+      <div class="relative min-h-[60vh]" @pointerup.stop="onPointerUp" @pointercancel.stop="onPointerUp">
         <div v-if="isLoading" class="flex items-center justify-center h-64">
           <div class="text-muted-foreground">Loading your ideas...</div>
         </div>
