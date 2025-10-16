@@ -63,7 +63,15 @@ async function saveIdea() {
         .single()
       
       if (error) throw error
-      ideas.value.push(data as Idea)
+      const created: Idea = {
+        id: String((data as any).id),
+        title: (data as any).title ?? title,
+        tagline: (data as any).tagline ?? tagline,
+        description: (data as any).description ?? description,
+        x: Number((data as any).x ?? centerX),
+        y: Number((data as any).y ?? centerY),
+      }
+      ideas.value.push(created)
     } else {
       // Update existing idea
       const { error } = await supabase
