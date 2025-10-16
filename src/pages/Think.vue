@@ -48,8 +48,8 @@ async function saveIdea() {
     if (editingId.value == null) {
       // Create new idea at container center
       const rect = boardRef.value?.getBoundingClientRect()
-      const centerX = rect ? rect.width / 2 - 112 : window.innerWidth / 2 - 112
-      const centerY = rect ? rect.height / 2 - 160 : window.scrollY + 160
+      const centerX = Math.round(rect ? rect.width / 2 - 112 : window.innerWidth / 2 - 112)
+      const centerY = Math.round(rect ? rect.height / 2 - 160 : window.scrollY + 160)
       
       const { data, error } = await supabase
         .from('ideas')
@@ -140,8 +140,8 @@ function onPointerMove(e: PointerEvent) {
   const rect = boardRef.value?.getBoundingClientRect()
   const left = rect?.left ?? 0
   const top = rect?.top ?? 0
-  const x = e.clientX - left - dragOffsetX
-  const y = e.clientY - top - dragOffsetY
+  const x = Math.round(e.clientX - left - dragOffsetX)
+  const y = Math.round(e.clientY - top - dragOffsetY)
   ideas.value[idx] = { ...ideas.value[idx], x, y } as Idea
 
   // Debounced background save while dragging
@@ -209,8 +209,8 @@ async function loadIdeas() {
     if (error) throw error
     // Coerce positions to numbers and provide sane defaults
     const rect = boardRef.value?.getBoundingClientRect()
-    const fallbackX = Math.max(16, (rect ? rect.width : window.innerWidth) / 2 - 112)
-    const fallbackY = rect ? rect.height / 2 - 160 : window.scrollY + 160
+    const fallbackX = Math.round(Math.max(16, (rect ? rect.width : window.innerWidth) / 2 - 112))
+    const fallbackY = Math.round(rect ? rect.height / 2 - 160 : window.scrollY + 160)
     console.log('Loading ideas:', { 
       dataCount: data?.length, 
       containerRect: rect, 
@@ -218,8 +218,8 @@ async function loadIdeas() {
       fallbackY 
     })
     ideas.value = (data || []).map((row: any) => {
-      const x = typeof row.x === 'number' ? row.x : Number(row.x ?? fallbackX)
-      const y = typeof row.y === 'number' ? row.y : Number(row.y ?? fallbackY)
+      const x = Math.round(typeof row.x === 'number' ? row.x : Number(row.x ?? fallbackX))
+      const y = Math.round(typeof row.y === 'number' ? row.y : Number(row.y ?? fallbackY))
       console.log('Loading idea:', { id: row.id, savedX: row.x, savedY: row.y, finalX: x, finalY: y })
       return {
         id: String(row.id),
