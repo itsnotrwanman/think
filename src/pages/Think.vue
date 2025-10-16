@@ -165,7 +165,17 @@ async function loadIdeas() {
       .order('created_at', { ascending: false })
     
     if (error) throw error
-    ideas.value = data || []
+    // Coerce positions to numbers and provide sane defaults
+    const fallbackX = Math.max(16, window.innerWidth / 2 - 112)
+    const fallbackY = window.scrollY + 160
+    ideas.value = (data || []).map((row: any) => ({
+      id: String(row.id),
+      title: row.title ?? '',
+      tagline: row.tagline ?? '',
+      description: row.description ?? '',
+      x: typeof row.x === 'number' ? row.x : Number(row.x ?? fallbackX),
+      y: typeof row.y === 'number' ? row.y : Number(row.y ?? fallbackY),
+    }))
   } catch (error) {
     console.error('Error loading ideas:', error)
   } finally {
@@ -176,12 +186,18 @@ async function loadIdeas() {
 onMounted(async () => {
   window.addEventListener('pointermove', onPointerMove)
   window.addEventListener('pointerup', onPointerUp)
+  // Persist if the user leaves while dragging
+  const persistIfDragging = () => { if (draggingId.value) onPointerUp() }
+  window.addEventListener('visibilitychange', persistIfDragging)
+  window.addEventListener('beforeunload', persistIfDragging)
   await loadIdeas()
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('pointermove', onPointerMove)
   window.removeEventListener('pointerup', onPointerUp)
+  window.removeEventListener('visibilitychange', () => {})
+  window.removeEventListener('beforeunload', () => {})
 })
 
 // Load ideas whenever the authenticated user changes (e.g., after login)
@@ -191,7 +207,7 @@ watch(user, async (u) => {
   } else {
     ideas.value = []
   }
-}, { immediate: false })
+}, { immediate: true })
 </script>
 
 <template>
