@@ -2,14 +2,15 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useColorMode } from '@vueuse/core'
 import { useAuth } from '@/composables/useAuth'
+import { supabase } from '@/lib/supabase'
 import FlipCard from '@/components/FlipCard.vue'
 import ShimmerButton from '@/components/ShimmerButton.vue'
 import ParticlesBg from '@/components/ParticlesBg.vue'
 import Modal from '@/components/Modal.vue'
 
-type Idea = { id: number; title: string; tagline: string; description: string; x: number; y: number }
+type Idea = { id: string; title: string; tagline: string; description: string; x: number; y: number }
 const ideas = ref<Idea[]>([])
-let nextId = 1
+const isLoading = ref(true)
 
 function addIdea() {
   editingId.value = null
@@ -23,7 +24,7 @@ const { user, signOut } = useAuth()
 
 // modal state
 const isModalOpen = ref(false)
-const editingId = ref<number | null>(null)
+const editingId = ref<string | null>(null)
 const draftTitle = ref('')
 const draftDescription = ref('')
 const draftTagline = ref('')
@@ -36,34 +37,77 @@ function openEdit(idea: Idea) {
   isModalOpen.value = true
 }
 
-function saveIdea() {
+async function saveIdea() {
   const title = draftTitle.value.trim()
   const tagline = draftTagline.value.trim()
   const description = draftDescription.value.trim()
-  if (!title) return
-  if (editingId.value == null) {
-    const centerX = window.innerWidth / 2 - 112 // approx half card width (w-56)
-    const centerY = window.scrollY + 160
-    ideas.value.push({ id: nextId++, title, tagline, description, x: centerX, y: centerY })
-  } else {
-    const idx = ideas.value.findIndex((i) => i.id === editingId.value)
-    if (idx !== -1) ideas.value[idx] = { ...ideas.value[idx], title, tagline, description } as Idea
+  if (!title || !user.value) return
+  
+  try {
+    if (editingId.value == null) {
+      // Create new idea
+      const centerX = window.innerWidth / 2 - 112
+      const centerY = window.scrollY + 160
+      
+      const { data, error } = await supabase
+        .from('ideas')
+        .insert({
+          title,
+          tagline,
+          description,
+          x: centerX,
+          y: centerY,
+          user_id: user.value.id
+        })
+        .select()
+        .single()
+      
+      if (error) throw error
+      ideas.value.push(data)
+    } else {
+      // Update existing idea
+      const { error } = await supabase
+        .from('ideas')
+        .update({ title, tagline, description })
+        .eq('id', editingId.value)
+      
+      if (error) throw error
+      
+      const idx = ideas.value.findIndex((i) => i.id === editingId.value)
+      if (idx !== -1) {
+        ideas.value[idx] = { ...ideas.value[idx], title, tagline, description }
+      }
+    }
+    isModalOpen.value = false
+  } catch (error) {
+    console.error('Error saving idea:', error)
   }
-  isModalOpen.value = false
 }
 
-function deleteIdea() {
+async function deleteIdea() {
   if (editingId.value == null) {
     isModalOpen.value = false
     return
   }
-  const idx = ideas.value.findIndex((i) => i.id === editingId.value)
-  if (idx !== -1) ideas.value.splice(idx, 1)
-  isModalOpen.value = false
+  
+  try {
+    const { error } = await supabase
+      .from('ideas')
+      .delete()
+      .eq('id', editingId.value)
+    
+    if (error) throw error
+    
+    const idx = ideas.value.findIndex((i) => i.id === editingId.value)
+    if (idx !== -1) ideas.value.splice(idx, 1)
+    isModalOpen.value = false
+  } catch (error) {
+    console.error('Error deleting idea:', error)
+  }
 }
 
 // drag state
-const draggingId = ref<number | null>(null)
+const draggingId = ref<string | null>(null)
 let dragOffsetX = 0
 let dragOffsetY = 0
 
@@ -80,17 +124,53 @@ function onPointerMove(e: PointerEvent) {
   if (idx === -1) return
   const x = e.clientX - dragOffsetX
   const y = e.clientY - dragOffsetY
-  ideas.value[idx] = { ...ideas.value[idx], x, y } as Idea
+  ideas.value[idx] = { ...ideas.value[idx], x, y }
 }
 
-function onPointerUp() {
+async function onPointerUp() {
+  if (draggingId.value) {
+    // Save position to database
+    const idea = ideas.value.find(i => i.id === draggingId.value)
+    if (idea) {
+      try {
+        await supabase
+          .from('ideas')
+          .update({ x: idea.x, y: idea.y })
+          .eq('id', idea.id)
+      } catch (error) {
+        console.error('Error saving position:', error)
+      }
+    }
+  }
   draggingId.value = null
 }
 
-onMounted(() => {
+async function loadIdeas() {
+  if (!user.value) return
+  
+  try {
+    isLoading.value = true
+    const { data, error } = await supabase
+      .from('ideas')
+      .select('*')
+      .eq('user_id', user.value.id)
+      .order('created_at', { ascending: false })
+    
+    if (error) throw error
+    ideas.value = data || []
+  } catch (error) {
+    console.error('Error loading ideas:', error)
+  } finally {
+    isLoading.value = false
+  }
+}
+
+onMounted(async () => {
   window.addEventListener('pointermove', onPointerMove)
   window.addEventListener('pointerup', onPointerUp)
+  await loadIdeas()
 })
+
 onBeforeUnmount(() => {
   window.removeEventListener('pointermove', onPointerMove)
   window.removeEventListener('pointerup', onPointerUp)
@@ -119,7 +199,17 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="relative min-h-[60vh]">
+        <div v-if="isLoading" class="flex items-center justify-center h-64">
+          <div class="text-muted-foreground">Loading your ideas...</div>
+        </div>
+        <div v-else-if="ideas.length === 0" class="flex items-center justify-center h-64">
+          <div class="text-center text-muted-foreground">
+            <p class="text-lg mb-2">No ideas yet</p>
+            <p class="text-sm">Click "Add card" to create your first idea</p>
+          </div>
+        </div>
         <div
+          v-else
           v-for="idea in ideas"
           :key="idea.id"
           class="absolute select-none"
