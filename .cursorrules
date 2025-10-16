@@ -1,0 +1,41 @@
+# Cursor Project Rules
+
+project_name: Idea
+
+code_generation:
+  style:
+    - Prefer explicit, descriptive names; avoid abbreviations
+    - Keep functions small with early returns
+    - Add comments only for non-obvious rationale and edge cases
+    - Match existing formatting; do not reformat unrelated code
+  typescript:
+    - Enable strict typing; avoid any and unsafe casts
+    - Prefer composition over inheritance
+    - Keep side effects out of modules; export pure functions when possible
+
+editing:
+  - Preserve existing indentation (tabs vs spaces) and width
+  - Do not introduce broad refactors with small edits
+  - Keep diffs minimal and targeted
+
+security:
+  - Never commit secrets or tokens
+  - Validate and sanitize inputs on boundaries
+
+performance:
+  - Avoid unnecessary reactivity and watchers; use computed where possible
+  - Memoize expensive computations if rerun often
+
+tests:
+  - Prefer unit tests close to code; name with .test.ts
+  - Keep tests deterministic; avoid network and time flakiness
+
+reviews:
+  - Explain non-trivial decisions in PR descriptions
+  - Link related issues and context
+
+tools:
+  - Run lint and typecheck before committing
+  - Use lint-staged to format staged files with Prettier
+
+
