@@ -148,6 +148,7 @@ function onPointerMove(e: PointerEvent) {
   if (savePositionTimer) window.clearTimeout(savePositionTimer)
   savePositionTimer = window.setTimeout(async () => {
     const idea = ideas.value[idx]
+    if (!idea) return
     try {
       await supabase
         .from('ideas')
