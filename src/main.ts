@@ -4,7 +4,7 @@ import './style.css'
 import App from './App.vue'
 import Home from './pages/Home.vue'
 import Think from './pages/Think.vue'
-import { useAuth } from './composables/useAuth'
+import { supabase } from './lib/supabase'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -18,14 +18,15 @@ const router = createRouter({
 const app = createApp(App)
 
 // Auth guard
-router.beforeEach((to, from, next) => {
-  const { isAuthenticated } = useAuth()
-  
-  if (to.meta.requiresAuth && !isAuthenticated.value) {
-    next('/login')
-  } else {
-    next()
+router.beforeEach(async (to, from, next) => {
+  if (to.meta.requiresAuth) {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      next('/login')
+      return
+    }
   }
+  next()
 })
 
 app.use(router).mount('#app')
