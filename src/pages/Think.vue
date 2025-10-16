@@ -11,6 +11,7 @@ import Modal from '@/components/Modal.vue'
 type Idea = { id: string; title: string; tagline: string; description: string; x: number; y: number }
 const ideas = ref<Idea[]>([])
 const isLoading = ref(true)
+const boardRef = ref<HTMLDivElement | null>(null)
 
 function addIdea() {
   editingId.value = null
@@ -45,9 +46,10 @@ async function saveIdea() {
   
   try {
     if (editingId.value == null) {
-      // Create new idea
-      const centerX = window.innerWidth / 2 - 112
-      const centerY = window.scrollY + 160
+      // Create new idea at container center
+      const rect = boardRef.value?.getBoundingClientRect()
+      const centerX = rect ? rect.width / 2 - 112 : window.innerWidth / 2 - 112
+      const centerY = rect ? rect.height / 2 - 160 : window.scrollY + 160
       
       const { data, error } = await supabase
         .from('ideas')
@@ -118,11 +120,15 @@ async function deleteIdea() {
 const draggingId = ref<string | null>(null)
 let dragOffsetX = 0
 let dragOffsetY = 0
+let savePositionTimer: number | null = null
 
 function onPointerDown(e: PointerEvent, idea: Idea) {
   draggingId.value = idea.id
-  dragOffsetX = e.clientX - idea.x
-  dragOffsetY = e.clientY - idea.y
+  const rect = boardRef.value?.getBoundingClientRect()
+  const left = rect?.left ?? 0
+  const top = rect?.top ?? 0
+  dragOffsetX = e.clientX - left - idea.x
+  dragOffsetY = e.clientY - top - idea.y
   ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
 }
 
@@ -130,9 +136,26 @@ function onPointerMove(e: PointerEvent) {
   if (draggingId.value == null) return
   const idx = ideas.value.findIndex((i) => i.id === draggingId.value)
   if (idx === -1) return
-  const x = e.clientX - dragOffsetX
-  const y = e.clientY - dragOffsetY
+  const rect = boardRef.value?.getBoundingClientRect()
+  const left = rect?.left ?? 0
+  const top = rect?.top ?? 0
+  const x = e.clientX - left - dragOffsetX
+  const y = e.clientY - top - dragOffsetY
   ideas.value[idx] = { ...ideas.value[idx], x, y } as Idea
+
+  // Debounced background save while dragging
+  if (savePositionTimer) window.clearTimeout(savePositionTimer)
+  savePositionTimer = window.setTimeout(async () => {
+    const idea = ideas.value[idx]
+    try {
+      await supabase
+        .from('ideas')
+        .update({ x: idea.x, y: idea.y })
+        .eq('id', idea.id)
+    } catch (error) {
+      console.error('Error autosaving position:', error)
+    }
+  }, 300)
 }
 
 async function onPointerUp() {
@@ -163,6 +186,10 @@ async function onPointerUp() {
     }
   }
   draggingId.value = null
+  if (savePositionTimer) {
+    window.clearTimeout(savePositionTimer)
+    savePositionTimer = null
+  }
 }
 
 async function loadIdeas() {
@@ -178,8 +205,9 @@ async function loadIdeas() {
     
     if (error) throw error
     // Coerce positions to numbers and provide sane defaults
-    const fallbackX = Math.max(16, window.innerWidth / 2 - 112)
-    const fallbackY = window.scrollY + 160
+    const rect = boardRef.value?.getBoundingClientRect()
+    const fallbackX = Math.max(16, (rect ? rect.width : window.innerWidth) / 2 - 112)
+    const fallbackY = rect ? rect.height / 2 - 160 : window.scrollY + 160
     ideas.value = (data || []).map((row: any) => ({
       id: String(row.id),
       title: row.title ?? '',
@@ -243,7 +271,7 @@ watch(user, async (u) => {
         </div>
       </div>
 
-      <div class="relative min-h-[60vh]" @pointerup.stop="onPointerUp" @pointercancel.stop="onPointerUp">
+      <div ref="boardRef" class="relative min-h-[60vh]" @pointerup.stop="onPointerUp" @pointercancel.stop="onPointerUp">
         <div v-if="isLoading" class="flex items-center justify-center h-64">
           <div class="text-muted-foreground">Loading your ideas...</div>
         </div>
