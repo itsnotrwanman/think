@@ -129,6 +129,7 @@ function onPointerDown(e: PointerEvent, idea: Idea) {
   const top = rect?.top ?? 0
   dragOffsetX = e.clientX - left - idea.x
   dragOffsetY = e.clientY - top - idea.y
+  console.log('Drag start:', { ideaId: idea.id, x: idea.x, y: idea.y, containerRect: rect })
   ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
 }
 
@@ -163,6 +164,7 @@ async function onPointerUp() {
     // Save position to database
     const idea = ideas.value.find(i => i.id === draggingId.value)
     if (idea) {
+      console.log('Saving position:', { ideaId: idea.id, x: idea.x, y: idea.y })
       try {
         const { data, error } = await supabase
           .from('ideas')
@@ -171,6 +173,7 @@ async function onPointerUp() {
           .select()
           .single()
         if (error) throw error
+        console.log('Position saved to DB:', data)
         // Ensure local state mirrors DB
         const idx = ideas.value.findIndex(i => i.id === idea.id)
         if (idx !== -1 && data) {
@@ -208,14 +211,25 @@ async function loadIdeas() {
     const rect = boardRef.value?.getBoundingClientRect()
     const fallbackX = Math.max(16, (rect ? rect.width : window.innerWidth) / 2 - 112)
     const fallbackY = rect ? rect.height / 2 - 160 : window.scrollY + 160
-    ideas.value = (data || []).map((row: any) => ({
-      id: String(row.id),
-      title: row.title ?? '',
-      tagline: row.tagline ?? '',
-      description: row.description ?? '',
-      x: typeof row.x === 'number' ? row.x : Number(row.x ?? fallbackX),
-      y: typeof row.y === 'number' ? row.y : Number(row.y ?? fallbackY),
-    }))
+    console.log('Loading ideas:', { 
+      dataCount: data?.length, 
+      containerRect: rect, 
+      fallbackX, 
+      fallbackY 
+    })
+    ideas.value = (data || []).map((row: any) => {
+      const x = typeof row.x === 'number' ? row.x : Number(row.x ?? fallbackX)
+      const y = typeof row.y === 'number' ? row.y : Number(row.y ?? fallbackY)
+      console.log('Loading idea:', { id: row.id, savedX: row.x, savedY: row.y, finalX: x, finalY: y })
+      return {
+        id: String(row.id),
+        title: row.title ?? '',
+        tagline: row.tagline ?? '',
+        description: row.description ?? '',
+        x,
+        y,
+      }
+    })
   } catch (error) {
     console.error('Error loading ideas:', error)
   } finally {
@@ -286,7 +300,7 @@ watch(user, async (u) => {
           v-for="idea in ideas"
           :key="idea.id"
           class="absolute select-none"
-          :style="{ left: idea.x + 'px', top: idea.y + 'px' }"
+          :style="{ transform: `translate(${idea.x}px, ${idea.y}px)` }"
           @pointerdown.stop.prevent="onPointerDown($event, idea)"
           @dblclick.stop="openEdit(idea)"
         >
