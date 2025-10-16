@@ -83,7 +83,7 @@ async function saveIdea() {
       
       const idx = ideas.value.findIndex((i) => i.id === editingId.value)
       if (idx !== -1) {
-        ideas.value[idx] = { ...ideas.value[idx], title, tagline, description }
+        ideas.value[idx] = { ...ideas.value[idx], title, tagline, description } as Idea
       }
     }
     isModalOpen.value = false
