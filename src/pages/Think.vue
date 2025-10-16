@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useColorMode } from '@vueuse/core'
 import { useAuth } from '@/composables/useAuth'
 import { supabase } from '@/lib/supabase'
@@ -63,7 +63,7 @@ async function saveIdea() {
         .single()
       
       if (error) throw error
-      ideas.value.push(data)
+      ideas.value.push(data as Idea)
     } else {
       // Update existing idea
       const { error } = await supabase
@@ -124,7 +124,7 @@ function onPointerMove(e: PointerEvent) {
   if (idx === -1) return
   const x = e.clientX - dragOffsetX
   const y = e.clientY - dragOffsetY
-  ideas.value[idx] = { ...ideas.value[idx], x, y }
+  ideas.value[idx] = { ...ideas.value[idx], x, y } as Idea
 }
 
 async function onPointerUp() {
@@ -175,6 +175,15 @@ onBeforeUnmount(() => {
   window.removeEventListener('pointermove', onPointerMove)
   window.removeEventListener('pointerup', onPointerUp)
 })
+
+// Load ideas whenever the authenticated user changes (e.g., after login)
+watch(user, async (u) => {
+  if (u) {
+    await loadIdeas()
+  } else {
+    ideas.value = []
+  }
+}, { immediate: false })
 </script>
 
 <template>
